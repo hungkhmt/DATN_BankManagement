@@ -39,8 +39,11 @@ public class TransactionService implements ITransactionService {
         BankAccount destinationAcc = bankAccountService.getBankAccById(transferDto.getDestinationAccountId());
 
         // check if balace less than amount of money want to transfer
-        if (sourceAcc.getBalance() < transferDto.getAmount() || sourceAcc.getBalance() < 0 || sourceAcc.getBalance()<50_000 || sourceAcc.getBalance()-transferDto.getAmount() < 50_000) {
-            throw new InsufficientBalanceException("Insufficient balance to perform the transaction");
+        if (sourceAcc.getBalance() < transferDto.getAmount() || sourceAcc.getBalance() < 0 || sourceAcc.getBalance()<50_000 || sourceAcc.getBalance()-transferDto.getAmount() < 50_000
+                || transferDto.getAmount() > sourceAcc.getMaxTransactionAmount()
+                || transferDto.getAmount() < 1000
+        ) {
+            throw new InsufficientBalanceException("Insufficient balance to perform the transaction or the amount exceeds the transaction limit or is below the minimum required");
         }
 
         // create transaction
@@ -52,13 +55,9 @@ public class TransactionService implements ITransactionService {
         transaction.setTransactionDate(LocalDateTime.now());
         transaction.setDescription(transferDto.getDescription());
 
-
-
-//        for(int i=0;i<10;i++){
-            transactionRepository.save(transaction);
-            bankAccountService.updateAccountBalance(transferDto.getSourceAccountId(), -transferDto.getAmount());
-            bankAccountService.updateAccountBalance(transferDto.getDestinationAccountId(), transferDto.getAmount());
-//        }
+        transactionRepository.save(transaction);
+        bankAccountService.updateAccountBalance(transferDto.getSourceAccountId(), -transferDto.getAmount());
+        bankAccountService.updateAccountBalance(transferDto.getDestinationAccountId(), transferDto.getAmount());
         return transaction;
     }
 
@@ -110,16 +109,30 @@ public class TransactionService implements ITransactionService {
     }
 
     @Override
-    public List<Transaction> findAll() {
-        return transactionRepository.findAll();
+    public List<Transaction> findAllByMonth(Integer mounth) {
+        return transactionRepository.findAllByMonth(mounth);
     }
 
     @Override
     public List<Transaction> findByIdAccounts(Long id) {
-        List<Transaction> optionalTransaction= transactionRepository.findByIdAccounts(1926734002L);
+        List<Transaction> optionalTransaction= transactionRepository.findByIdAccounts(id);
 
         return optionalTransaction;
 
+    }
+
+    @Override
+
+    public List<Transaction> findByIdCustomer(Long id) {
+        return transactionRepository.findByUserId(id);
+    }
+
+    public List<Transaction> findBySourceAccountId(Long id, Integer mounth) {
+        return transactionRepository.findBySourceAccountId(id, mounth);
+    }
+
+    public List<Transaction> findByDestinationAccountId(Long id, Integer mounth) {
+        return transactionRepository.findByDestinationAccountId(id, mounth);
     }
 
     public Page<Transaction> getByPage(int page, String sortBy, String sortType, String key){

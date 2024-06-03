@@ -2,12 +2,12 @@ server:
   port: 8080
 spring:
   application:
-    name: "accounts"
+    name: account-service
     logging:
       level:
         root: DEBUG
   datasource:
-    url: jdbc:mysql://localhost:3306/accounts_bank_aht
+    url: jdbc:mysql://localhost:3306/accounts_bank
     username: root
     password: hung1218
   jpa:

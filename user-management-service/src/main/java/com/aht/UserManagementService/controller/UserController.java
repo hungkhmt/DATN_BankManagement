@@ -1,5 +1,6 @@
 package com.aht.UserManagementService.controller;
 
+import com.aht.UserManagementService.dto.ApiResponse;
 import com.aht.UserManagementService.dto.UserDTO;
 import com.aht.UserManagementService.entity.Role;
 import com.aht.UserManagementService.entity.User;
@@ -11,6 +12,7 @@ import com.aht.UserManagementService.service.IUserService;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -19,9 +21,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 @RestController
-@RequestMapping("api/user")
+@RequestMapping("api/v1/user")
 @Validated
-@CrossOrigin("*")
 @Slf4j
 public class UserController {
     @Autowired
@@ -29,15 +30,15 @@ public class UserController {
 
 
     @PostMapping("/registration")
-    public ResponseEntity<String> createUser(@RequestBody @Valid CreateUserForm form) {
+    public ApiResponse<Void> createUser(@RequestBody @Valid CreateUserForm form) {
         userService.createUser(form);
-        return ResponseEntity.ok("Create Successfully!");
+        return ApiResponse.<Void>builder().build();
     }
 
     @PostMapping("/ad")
-    public ResponseEntity<String> createUserFromAdmin(@RequestBody @Valid CreateUserForAdminForm form) {
+    public ApiResponse<Void> createUserFromAdmin(@RequestBody @Valid CreateUserForAdminForm form) {
         userService.createUserFromAdmin(form);
-        return ResponseEntity.ok("Create Successfully!");
+        return ApiResponse.<Void>builder().build();
     }
 
     @GetMapping()
@@ -56,6 +57,16 @@ public class UserController {
         return userService.getAllUsers();
     }
 
+    @GetMapping("/ad/active")
+    public List<User> getAllUserActive() {
+        return userService.getAllUserActive();
+    }
+
+    @GetMapping("/ad/disable")
+    public List<User> getAllUserDisable() {
+        return userService.getAllUserDisable();
+    }
+
     @GetMapping("/{id}")
     public UserDTO getUserById(@PathVariable(name = "id") Integer id) {
         User user = userService.getUserById(id);
@@ -69,36 +80,38 @@ public class UserController {
     }
 
     @PutMapping()
-    public ResponseEntity<String> updateUser(@RequestBody @Valid UpdateUserForm form) {
+    public ApiResponse<Void> updateUser(@RequestBody @Valid UpdateUserForm form) {
         userService.updateUser(form);
-        return ResponseEntity.ok("Update Successfully!");
+        return ApiResponse.<Void>builder().build();
     }
 
     @DeleteMapping("/{id}")
-    public void deleteUser(@PathVariable(name = "id") Integer id) {
+    public ApiResponse<Void> deleteUser(@PathVariable(name = "id") Integer id) {
         userService.deleteUser(id);
+        return ApiResponse.<Void>builder().build();
     }
 
     @PutMapping("/password/{id}")
-    public User updateUserPassword(@PathVariable(name = "id") Integer id, @RequestBody @Valid UpdateUserPasswordForm form) {
-
-        return userService.updatePassword(id, form);
+    public ResponseEntity<?> updateUserPassword(@PathVariable(name = "id") Integer id, @RequestBody UpdateUserPasswordForm form) {
+        userService.updatePassword(id, form);
+        return ResponseEntity.status(HttpStatus.OK).body("Update password succesful");
     }
 
     @PostMapping("/ad/grant/{id}")
-    public ResponseEntity<String> grantRoles(@PathVariable(name = "id") Integer userId, @RequestParam List<Role.RoleName> roleNames) {
+    public ApiResponse<Void> grantRoles(@PathVariable(name = "id") Integer userId, @RequestParam List<Role.RoleName> roleNames) {
         userService.grantRoles(userId, roleNames);
-        return ResponseEntity.ok("Roles granted successfully.");
+        return ApiResponse.<Void>builder().build();
     }
 
     @DeleteMapping("/ad/revoke/{id}")
-    public ResponseEntity<String> revokeRoles(@PathVariable(name = "id") Integer userId) {
+    public ApiResponse<Void> revokeRoles(@PathVariable(name = "id") Integer userId) {
         userService.revokeRoles(userId);
-        return ResponseEntity.ok("Roles revoked successfully.");
+        return ApiResponse.<Void>builder().build();
     }
 
     private UserDTO userToUserDTO(User user) {
         UserDTO userDTO = new UserDTO();
+        userDTO.setId(user.getUserId());
         userDTO.setUsername(user.getUsername());
         userDTO.setPassword(user.getPassword());
         userDTO.setEmail(user.getEmail());

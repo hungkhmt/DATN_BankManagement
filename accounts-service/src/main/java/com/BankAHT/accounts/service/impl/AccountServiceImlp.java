@@ -18,7 +18,9 @@ import org.springframework.stereotype.Service;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 
 import jakarta.transaction.Transactional;
@@ -50,20 +52,42 @@ public class AccountServiceImlp implements IAccountService {
 //                .build();
 //        kafkaTemplateUpdateAccount.send("create_account",messageUpdateAccount);
 //  }
+
+    public Long generateRandom(){
+        Random random= new Random();
+        StringBuilder idUnique=new StringBuilder();
+        for(int i=0;i<16;i++){
+
+//            idUnique.append(random.nextInt(10));
+            idUnique.append(random.nextInt(9) + 1);
+        }
+        return Long.parseLong(idUnique.toString());
+    }
+
+    public Long generateUnique(){
+
+        Long idGenerate;
+        do {
+            idGenerate= generateRandom();
+        }while (accountRepository.existsById(idGenerate));
+        return idGenerate;
+    }
     @Transactional
     @Override
-    public void createAccount(AccountDto accountDto) {
+    public Accounts createAccount(AccountDto accountDto) {
         // tạo tài khoan thi account se co 50k
         accountDto.setBalance(50_000L);
 
 
         Accounts accounts= AccountMapper.AccountDtoToAccount(accountDto);
+        accounts.setAccountId(generateUnique());
         accounts.setCreatedAt(new Timestamp(System.currentTimeMillis()));
         accounts.setCreatedBy("PTD-PTIT");
         accounts.setStatus(AccountStatus.PENDING);
         accounts.setBalance(50_000L);
-        accountRepository.save(accounts);
-        kafkaTemplate.send("create_account",accountDto.toString());
+        accounts.setMaxTransactionAmount(2_000_000.0);
+//        kafkaTemplate.send("create_account",accountDto.toString());
+        return  accountRepository.save(accounts);
     }
 
     @Override
@@ -84,6 +108,26 @@ public class AccountServiceImlp implements IAccountService {
     }
 
     @Override
+    public List<AccountDto> getAllAccountByMonth(Integer month) {
+        List<Accounts> accounts = accountRepository.findAllByMonth(month);
+        List<AccountDto> accountDtos = new ArrayList<>();
+        for(Accounts accounts1: accounts) {
+            accountDtos.add(accountToAccountDTO(accounts1));
+        }
+        return accountDtos;
+    }
+
+    @Override
+    public List<AccountDto> getAllAccountByUserId(Long userId) {
+        List<Accounts> accounts = accountRepository.findAllByCustomerIdAndIsActive(userId);
+        List<AccountDto> accountDtos = new ArrayList<>();
+        for(Accounts accounts1: accounts) {
+            accountDtos.add(accountToAccountDTO(accounts1));
+        }
+        return accountDtos;
+    }
+
+    @Override
     public boolean updateAccount(AccountDto accountDto) {
 
         Accounts oldAccouts= accountRepository.findById(accountDto.getAccountId()).orElseThrow(()-> new ResourceNoFoundException("Accouts",accountDto.getAccountId().toString(),"AccoutsNumber"));
@@ -94,6 +138,15 @@ public class AccountServiceImlp implements IAccountService {
         accountRepository.save(accounts);
         return false;
     }
+
+    @Override
+    public void updateBalance(Long idAccount,Long amount) {
+        Accounts accounts= accountRepository.findById(idAccount).orElseThrow(()-> new ResourceNoFoundException("Accouts",idAccount.toString(),"AccoutsNumber"));
+//        accounts.setBalance(accounts.getBalance()+amount);
+//        accountRepository.save(accounts);
+        accountRepository.updateBalanceByAccountIdAndAmount(idAccount,amount);
+    }
+
 
     @Transactional
     @Override
@@ -117,7 +170,16 @@ public class AccountServiceImlp implements IAccountService {
         accounts.setUpdatedAt(new Timestamp(System.currentTimeMillis()));
         accounts.setUpdatedBy("PTD-PTIT");
         accountRepository.save(accounts);
-        kafkaTemplate.send("enable_account",accountNumber);
+        AccountDto accountDto= AccountDto.builder()
+                .accountId(accountNumber)
+                .customerId(accounts.getCustomerId())
+                .accountType(accounts.getAccountType())
+                .balance(accounts.getBalance())
+                .accountStatus(accounts.getStatus())
+                .build();
+        //se chi gui create_account du la tao hay enable ve phia transaction con logic se do transaction su ly
+        kafkaTemplate.send("create_account",accountDto.toString());
+//        kafkaTemplate.send("enable_account",accountNumber);
     }
 
 //    delete_account
@@ -141,6 +203,15 @@ public class AccountServiceImlp implements IAccountService {
                 .balance(accounts.getBalance())
                 .createdAt(accounts.getCreatedAt())
                 .build();
+    }
+
+    public HashMap<Integer,Long> accountCreationStatistics(){
+        HashMap<Integer,Long> map= new HashMap<>();
+        for(int i=1;i<=12;i++){
+            Long numberAccountCreate= accountRepository.countAccountsCreatedByMonth(i,2024);
+            map.put(i,numberAccountCreate);
+        }
+        return map;
     }
 
 }

@@ -1,6 +1,8 @@
 package org.example.transactionservice.service.implement;
 
 import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.example.transactionservice.dto.transaction.MessageUpdateBalanceTransaction;
 import org.example.transactionservice.exception.AccountIsNotValidException;
 import org.example.transactionservice.exception.ResourceNoFoundException;
@@ -15,27 +17,28 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.Optional;
+
 @Service
+@RequiredArgsConstructor
 public class BankAccountService implements IBankAccountService {
 
-    private KafkaTemplate<String, Object> kafkaTemplate;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
     private final BankAccountRepository bankAccountRepository;
-    private Logger logger= LoggerFactory.getLogger(BankAccountService.class);
 
-    @Autowired
-    private MessageTransactionRepository messageUpdateBalanceRepository;
+    private final MessageTransactionRepository messageUpdateBalanceRepository;
 
-    public BankAccountService(KafkaTemplate<String, Object> kafkaTemplate, BankAccountRepository bankAccountRepository){
-        this.kafkaTemplate= kafkaTemplate;
-        this.bankAccountRepository=bankAccountRepository;
-    }
+//    public BankAccountService(KafkaTemplate<String, Object> kafkaTemplate, BankAccountRepository bankAccountRepository){
+//        this.kafkaTemplate= kafkaTemplate;
+//        this.bankAccountRepository=bankAccountRepository;
+//    }
 
 
     @Override
     public BankAccount getBankAccById(Long accountId) throws Exception {
-        BankAccount bankAccount = bankAccountRepository.findBankAccoutById(accountId);
-        if (bankAccount != null) {
-            return bankAccount;
+        Optional<BankAccount> bankAccount = bankAccountRepository.findBankAccoutById(accountId);
+        if (bankAccount.isPresent()) {
+            return bankAccount.get();
         }
         throw new AccountIsNotValidException("Account is not exist");
     }
@@ -62,7 +65,8 @@ public class BankAccountService implements IBankAccountService {
         accountSave.setAccountType(account.getAccountType());
         accountSave.setUserId(account.getUserId());
         accountSave.setBalance(account.getBalance());
-        accountSave.setStatus(AccountStatus.PENDING);
+        accountSave.setStatus(account.getStatus());
+        accountSave.setMaxTransactionAmount(2_000_000.0);
         bankAccountRepository.save(accountSave);
     }
 
